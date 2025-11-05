@@ -53,7 +53,7 @@ describe('IntervalTimer', () => {
       timerInstances.push(timer1)
       const timer2 = new IntervalTimer(30)
       timerInstances.push(timer2)
-      
+
       // The implementation sets this.instance = this for each instance
       // Note: This is not a true singleton pattern as each new instance creates a separate object
       expect(timer1.instance).toBe(timer1)
@@ -64,33 +64,39 @@ describe('IntervalTimer', () => {
   })
 
   describe('startTimer', () => {
-    it('should start the timer interval', (done) => {
+    it('should start the timer interval', async () => {
+      let callbackCalled = false
       const mockCallback = vi.fn(() => {
-        mockCallback.mockClear()
+        callbackCalled = true
       })
       const timer = new IntervalTimer(10, mockCallback)
       timerInstances.push(timer)
-      
+
       timer.startTimer()
-      
-      // Wait for callback to be called
-      setTimeout(() => {
-        expect(mockCallback).toHaveBeenCalled()
-        clearInterval(timer.timer)
-        done()
-      }, 15)
+
+      // Wait for callback to be called - use a longer timeout to ensure it fires
+      // In Node.js, the minimum delay might be larger, so we wait longer
+      await new Promise((resolve) => setTimeout(resolve, 100))
+
+      // Verify timer is running
+      expect(timer.timer).toBeDefined()
+      // Callback should have been called at least once
+      expect(callbackCalled || mockCallback.mock.calls.length > 0).toBe(true)
+      clearInterval(timer.timer)
     })
 
     it('should store the timer ID', () => {
       const timer = new IntervalTimer()
       timerInstances.push(timer)
       timer.startTimer()
-      
+
       expect(timer.timer).toBeDefined()
       // In Node.js, setInterval returns a Timeout object, not a number
       // In browsers, it returns a number. Both are valid.
-      expect(typeof timer.timer === 'number' || typeof timer.timer === 'object').toBe(true)
-      
+      expect(
+        typeof timer.timer === 'number' || typeof timer.timer === 'object'
+      ).toBe(true)
+
       clearInterval(timer.timer)
     })
   })
@@ -100,13 +106,13 @@ describe('IntervalTimer', () => {
       const timer = new IntervalTimer()
       timerInstances.push(timer)
       timer.startTimer()
-      
+
       // getElapsedTime uses timer ID arithmetic which may not work as expected
       // but we test the actual behavior
       const elapsed = timer.getElapsedTime()
-      
+
       expect(typeof elapsed).toBe('number')
-      
+
       clearInterval(timer.timer)
     })
 
@@ -114,12 +120,12 @@ describe('IntervalTimer', () => {
       const timer = new IntervalTimer()
       timerInstances.push(timer)
       timer.startTimer()
-      
+
       const offset = 100
       const elapsed = timer.getElapsedTime(offset)
-      
+
       expect(typeof elapsed).toBe('number')
-      
+
       clearInterval(timer.timer)
     })
 
@@ -127,13 +133,13 @@ describe('IntervalTimer', () => {
       const timer = new IntervalTimer()
       timerInstances.push(timer)
       timer.startTimer()
-      
+
       const prevIntervalBefore = timer.prevInterval
       timer.getElapsedTime()
       const prevIntervalAfter = timer.prevInterval
-      
+
       expect(prevIntervalAfter).not.toBe(prevIntervalBefore)
-      
+
       clearInterval(timer.timer)
     })
   })
@@ -143,33 +149,36 @@ describe('IntervalTimer', () => {
       const timer = new IntervalTimer()
       timerInstances.push(timer)
       timer.startTimer()
-      
+
       const runTime = timer.getRunTime()
-      
+
       expect(runTime).toBe(timer.timer)
       // In Node.js, setInterval returns a Timeout object, not a number
       // In browsers, it returns a number. Both are valid.
-      expect(typeof runTime === 'number' || typeof runTime === 'object').toBe(true)
-      
+      expect(typeof runTime === 'number' || typeof runTime === 'object').toBe(
+        true
+      )
+
       clearInterval(timer.timer)
     })
   })
 
   describe('resetTimer', () => {
-    it('should clear the timer interval', (done) => {
+    it('should clear the timer interval', async () => {
       const mockCallback = vi.fn()
       const timer = new IntervalTimer(10, mockCallback)
       timerInstances.push(timer)
       timer.startTimer()
-      
+
       timer.resetTimer()
-      
+
       // Verify timer was cleared - callback should not be called after reset
       mockCallback.mockClear()
-      setTimeout(() => {
-        expect(mockCallback).not.toHaveBeenCalled()
-        done()
-      }, 20)
+
+      // Wait a bit to ensure no more callbacks are called
+      await new Promise((resolve) => setTimeout(resolve, 30))
+
+      expect(mockCallback).not.toHaveBeenCalled()
     })
 
     it('should reset the callback to empty function', () => {
@@ -177,9 +186,9 @@ describe('IntervalTimer', () => {
       const timer = new IntervalTimer(10, mockCallback)
       timerInstances.push(timer)
       timer.startTimer()
-      
+
       timer.resetTimer()
-      
+
       expect(timer.callBack).not.toBe(mockCallback)
       expect(typeof timer.callBack).toBe('function')
     })
@@ -188,29 +197,38 @@ describe('IntervalTimer', () => {
       const timer = new IntervalTimer()
       timerInstances.push(timer)
       timer.startTimer()
-      
+
       const elapsed = timer.resetTimer()
-      
+
       expect(typeof elapsed).toBe('number')
     })
 
-    it('should allow timer to be started again after reset', (done) => {
-      const mockCallback = vi.fn()
+    it('should allow timer to be started again after reset', async () => {
+      let callbackCalled = false
+      const mockCallback = vi.fn(() => {
+        callbackCalled = true
+      })
       const timer = new IntervalTimer(10, mockCallback)
       timerInstances.push(timer)
-      
+
       timer.startTimer()
       timer.resetTimer()
-      
+
+      // Reset the flag
+      callbackCalled = false
+      mockCallback.mockClear()
+
       // Set new callback and start again
       timer.callBack = mockCallback
       timer.startTimer()
-      
-      setTimeout(() => {
-        expect(mockCallback).toHaveBeenCalled()
-        clearInterval(timer.timer)
-        done()
-      }, 15)
+
+      // Wait for callback to be called - use a longer timeout to ensure it fires
+      await new Promise((resolve) => setTimeout(resolve, 100))
+
+      expect(timer.timer).toBeDefined()
+      // Callback should have been called at least once
+      expect(callbackCalled || mockCallback.mock.calls.length > 0).toBe(true)
+      clearInterval(timer.timer)
     })
   })
 
@@ -219,15 +237,15 @@ describe('IntervalTimer', () => {
       const timer = new IntervalTimer(10)
       timerInstances.push(timer)
       timer.startTimer()
-      
+
       // Simulate initialization
       const initOffset = timer.getRunTime()
-      
+
       // Simulate some work
       const elapsed = timer.getElapsedTime(initOffset)
-      
+
       expect(typeof elapsed).toBe('number')
-      
+
       // Reset
       const finalElapsed = timer.resetTimer()
       expect(typeof finalElapsed).toBe('number')
@@ -237,15 +255,15 @@ describe('IntervalTimer', () => {
       const timer = new IntervalTimer()
       timerInstances.push(timer)
       timer.startTimer()
-      
+
       const elapsed1 = timer.getElapsedTime()
       const elapsed2 = timer.getElapsedTime()
       const elapsed3 = timer.getElapsedTime()
-      
+
       expect(typeof elapsed1).toBe('number')
       expect(typeof elapsed2).toBe('number')
       expect(typeof elapsed3).toBe('number')
-      
+
       clearInterval(timer.timer)
     })
   })
@@ -254,11 +272,11 @@ describe('IntervalTimer', () => {
 describe('ExampleIntervalTimer', () => {
   it('should execute without errors', () => {
     const mockOutput = vi.fn()
-    
+
     expect(() => {
       ExampleIntervalTimer(mockOutput)
     }).not.toThrow()
-    
+
     // Clean up - the ExampleIntervalTimer creates a timer instance
     // We need to access it through the singleton pattern
     const timer = new IntervalTimer()
